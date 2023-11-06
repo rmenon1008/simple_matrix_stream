@@ -18,8 +18,8 @@ config = {
 }
 
 BLANK_FRAME = np.zeros((48, 96, 3), dtype=np.uint8)
-# STARTUP_FRAME = cv2.imread("/home/dietpi/simple_matrix_streamer/startup.png")
-STARTUP_FRAME = cv2.imread("startup.png")
+STARTUP_FRAME = cv2.imread("/home/dietpi/simple_matrix_stream/startup.png")
+# STARTUP_FRAME = cv2.imread("startup.png")
 
 if __name__ == '__main__':
     matrix = Matrix()
