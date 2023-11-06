@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 import time
 
-from matrix_emulator import Matrix
+# from matrix_emulator import Matrix
+from matrix_driver import Matrix
 from streamer import Streamer
 
 config = {
