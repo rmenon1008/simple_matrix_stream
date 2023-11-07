@@ -1,5 +1,6 @@
 import spidev
 import RPi.GPIO as gpio
+import cv2
 
 import time
 
@@ -19,6 +20,7 @@ class Matrix:
         self.reset()
 
     def set_pixels(self, pixels):
+        pixels = cv2.cvtColor(pixels, cv2.COLOR_BGR2RGB)
         data = pixels.tobytes()
         self.spi.writebytes2(data)
 
