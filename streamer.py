@@ -50,6 +50,7 @@ class Streamer:
         self.frame_grabber.start()
         
     def _grab_frames(self):
+        while True:
             cap = cv2.VideoCapture(self.stream_url)
             print("Starting stream with fps: {}".format(self.fps))
         
@@ -68,6 +69,9 @@ class Streamer:
                     self.frame_buffer.put(frame)
                 else:
                     break
+
+            print("Restarting")
+            time.sleep(2)
 
     def get_frame(self):
         if self.last_frame_time is not None:
