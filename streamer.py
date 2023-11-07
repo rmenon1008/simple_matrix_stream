@@ -21,40 +21,45 @@ class Streamer:
         self.frame_buffer = m.Queue(maxsize=20*self.fps)
         self.frame_grabber = mp.Process(target=self._grab_frames)
 
-    def __del__(self):
-        self.frame_grabber.terminate()
-        self.frame_grabber.join()
+        self.frame_grabber.start()
 
     def _set_up(self):
-        if ".m3u8" in self.url:
-            self.stream_url = self.url
-            self.fps = 30
-        else:
-            with yt_dlp.YoutubeDL() as ydl:
-                info = ydl.extract_info(self.url, download=False, process=False)
-                formats = info['formats']
-
-                for format in formats:
-                    if 'height' in format:
-                        if format['height'] == self.desired_width:
-                            break
-                    else:
-                        continue
+        while True:
+            try:
+                if ".m3u8" in self.url:
+                    self.stream_url = self.url
+                    self.fps = 30
                 else:
-                    raise ValueError("No format with desired width found")
+                    with yt_dlp.YoutubeDL() as ydl:
+                        info = ydl.extract_info(self.url, download=False, process=False)
+                        formats = info['formats']
 
-                self.stream_url = format['url']
-                self.fps = format['fps']
+                        for format in formats:
+                            if 'height' in format:
+                                if format['height'] == self.desired_width:
+                                    break
+                            else:
+                                continue
+                        else:
+                            raise ValueError("No format with desired width found")
 
-    def start(self):
-        self.frame_grabber.start()
+                        self.stream_url = format['url']
+                        self.fps = format['fps']
+                        break
+            except:
+                print("Could not connect to stream. Retrying...")
+            time.sleep(5)
         
     def _grab_frames(self):
-        while True:
+        try:
             cap = cv2.VideoCapture(self.stream_url)
-            print("Starting stream with fps: {}".format(self.fps))
-        
-            while True:
+        except:
+            print("Asking for restart (no cap available)")
+            self.frame_buffer.put(None)
+        print("Starting stream with fps: {}".format(self.fps))
+
+        while True:
+            try:
                 ret, frame = cap.read()
                 if ret:
                     if self.crop is not None:
@@ -62,29 +67,55 @@ class Streamer:
                     if self.adjustments is not None:
                         frame = ip.image_adjustment(frame, **self.adjustments)
                     frame = ip.center_crop(frame, self.size[0] / self.size[1])
-                    frame = cv2.resize(frame, self.size)
+                    frame = cv2.resize(frame, self.size, interpolation=cv2.INTER_AREA)
 
+                    # Skip ahead if there are a ton of frames in the buffer
                     if self.frame_buffer.full():
-                        self.frame_buffer.get()
+                        while self.frame_buffer.qsize() > 10*self.fps:
+                            self.frame_buffer.get()
+
                     self.frame_buffer.put(frame)
                 else:
+                    print("Ret was false")
                     break
+            except:
+                print("Error reading frame")
+                break
+        
+        print("Asking for restart (error reading frame)")
+        self.frame_buffer.put(None)
 
-            print("Restarting")
-            time.sleep(2)
+    def _try_restart(self):
+        print("Found None frame, restarting...")
+        self.frame_grabber.terminate()
+        self.frame_grabber.join()
+        self._set_up()
+        self.frame_grabber = mp.Process(target=self._grab_frames)
+        self.frame_grabber.start()
+        frame = self.frame_buffer.get()
+        return frame
 
     def get_frame(self):
+        print(self.frame_buffer.qsize())
         if self.last_frame_time is not None:
             # Throw away frames if we are falling behind
             frames_to_skip = int((time.time() - self.last_frame_time) * self.fps)
             for _ in range(frames_to_skip):
-                self.frame_buffer.get()
+                frame = self.frame_buffer.get()
+                if frame is None:
+                    frame = self._try_restart()
 
             # Wait if we are ahead of schedule
             time_to_wait = 1 / self.fps - (time.time() - self.last_frame_time)
             if time_to_wait > 0:
                 time.sleep(time_to_wait)
 
+            if self.frame_buffer.empty():
+                time.sleep(5)
+
         self.last_frame_time = time.time()
-        return self.frame_buffer.get()
+        frame = self.frame_buffer.get()
+        if frame is None:
+            frame = self._try_restart()
+        return frame
         

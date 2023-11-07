@@ -32,7 +32,6 @@ if __name__ == '__main__':
     matrix.set_pixels(STARTUP_FRAME)
     time.sleep(5)
 
-    streamer.start()
     while True:
         frame = streamer.get_frame()
         matrix.set_pixels(frame)
