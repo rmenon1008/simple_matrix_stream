@@ -40,6 +40,10 @@ def adjust_temperature(img, factor):
     return img
 
 def image_adjustment(image, whitepoint=[255, 255, 255], blackpoint=[0, 0, 0], saturation=1.0, temperature=0.0):
+    # Apply saturation and temperature
+    image = adjust_saturation(image, saturation)
+    image = adjust_temperature(image, temperature)
+
     # Apply whitepoint and blackpoint
     image = image.astype(np.float32)
     whitepoint = np.array(whitepoint, dtype=np.float32)
@@ -47,9 +51,5 @@ def image_adjustment(image, whitepoint=[255, 255, 255], blackpoint=[0, 0, 0], sa
     image = (image - blackpoint) / (whitepoint - blackpoint)
     image = np.clip(image, 0, 1)
     image = (image * 255).astype(np.uint8)
-
-    # Apply saturation and temperature
-    image = adjust_saturation(image, saturation)
-    image = adjust_temperature(image, temperature)
 
     return image
